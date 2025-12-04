@@ -56,7 +56,3 @@ This folder contains all notebook settings.
 ## 📄 setup_cell.ipynb  
 This is the final notebook cell that combines everything.  
 It contains all imports and all settings in one clean block.
-
----
-
-✨ This structure keeps the setup clean, easy to understand, and professional.
