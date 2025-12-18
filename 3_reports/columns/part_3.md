@@ -24,5 +24,5 @@
   → −5,385 rows, −2 columns (`doors`, `seats`)
 - **After deduplication:** (21,769 × 28)  
   → −1,470 rows
-- **Export-ready (location removed):** (21,769 × 27)
+- **Export-ready :** (21,769 × 28)
 
