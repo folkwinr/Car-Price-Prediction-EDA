@@ -1,4 +1,4 @@
-#  Car Price Prediction EDA (AutoScout24) — 3-Phase Data Preparation Pipeline
+#  Car Price Prediction EDA — 3-Phase Data Preparation Pipeline
 
 A complete, step-by-step data preparation project for car listings data, built as an EDA capstone.
 
