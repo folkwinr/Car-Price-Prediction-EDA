@@ -212,34 +212,6 @@ df.to_csv("scout_outliers_handled_final.csv", index=False)
 
 ---
 
-## ▶️ How to Run
-
-### 1) Create environment
-```bash
-python -m venv .venv
-source .venv/bin/activate   # macOS/Linux
-# .venv\Scripts\activate    # Windows
-```
-
-### 2) Install packages
-```bash
-pip install -U pip
-pip install pandas numpy matplotlib seaborn scipy scikit-learn ipywidgets termcolor
-```
-
-### 3) Add the raw data
-Place the raw JSON file here:
-```text
-data/as24_cars.json
-```
-
-### 4) Run notebooks in order
-1) Phase 1 → exports `clean_scout2022.csv`  
-2) Phase 2 → exports `filled_scout2022.csv`  
-3) Phase 3 → outlier handling + correlation check + duplicate removal (**end**)
-
----
-
 ## 🧠 Key Design Decisions
 - ✅ **Fix group keys first** (`model`, `make_model`, `body_type`) → stronger filling + cleaner segments.
 - ✅ **Use the right imputation method for the job:**
