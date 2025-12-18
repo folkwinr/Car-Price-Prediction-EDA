@@ -1,0 +1,23 @@
+# requirements.txt (FULL) — AutoScout24 EDA Pipeline (Phase 1–3)
+# Covers all imports used across the 3 notebooks (so nothing breaks when you run them).
+
+# Core data stack
+pandas>=2.0
+numpy>=1.24
+
+# Visualization
+matplotlib>=3.7
+seaborn>=0.12
+
+# Statistics / scientific utilities
+scipy>=1.10
+
+# Notebook / interactive
+jupyter>=1.0
+notebook>=7.0
+ipykernel>=6.25
+ipython>=8.0
+ipywidgets>=8.1
+
+# Helpers / formatting
+termcolor>=2.3
