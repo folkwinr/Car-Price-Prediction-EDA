@@ -1,252 +1,250 @@
 # 🧪 Part-01 Methodology (Data Cleaning) — Step-by-Step (AutoScout24)
 
-> Bu bölümde hedefimiz: **raw JSON → temiz, tutarlı, analiz/modellemeye hazır bir tablo** üretmekti.  
-> Stratejimiz “önce genel temizlik + kalite kontrol, sonra kolon-kolon (column-wise) dönüşüm, sonra feature engineering” şeklindeydi.
+> In this part, our goal was: **raw JSON → a clean, consistent, analysis/model-ready table**.  
+> Our strategy was: **general cleaning + quality checks first**, then **column-by-column cleaning**, then **feature engineering**, and finally **final checks**.
 
 ---
 
-## 🧭 0) Başlangıç Mantığı: Biz neyi çözmeye çalıştık?
-Raw ilan verilerinde tipik sorunlar vardı:
-- 🧾 Kolon adları karmaşık / newline / özel karakter (schema dağınıklığı)
-- 🔢 Sayısal değerler **metin** içinde (price, mileage, consumption, power…)
-- 🧩 Bazı hücreler **list** (donanım grupları, bazı kategorikler)
-- 🕳️ Çok fazla missing value (özellikle WLTP / EV alanları)
-- 🔁 Duplicate riski (scrape datada sık görülebilir)
+## 🧭 0) Starting Logic: What problem are we solving?
+Raw listing data usually has these issues:
+- 🧾 messy column names / newline characters / special symbols (schema noise)
+- 🔢 numeric values stored as **text** (price, mileage, consumption, power…)
+- 🧩 some cells are **lists** (equipment groups, some categorical fields)
+- 🕳️ many missing values (especially WLTP / EV fields)
+- 🔁 possible duplicates (common in scraped data)
 
-Bu yüzden karar ağacımız hep şuydu:
-- **Önce görünürlük:** “Ne var, ne kadar boş, format nasıl?”
-- **Sonra temizlik:** “Şema + noise removal + type conversion”
-- **Sonra anlam:** “Feature engineering + kategorik sadeleştirme”
-- **En son kontrol:** “Data quality gate”
+So our decision process was always:
+- **First visibility:** “What do we have, how missing is it, what is the format?”
+- **Then cleaning:** “schema + noise removal + type conversion”
+- **Then meaning:** “feature engineering + category simplification”
+- **Finally checks:** “data quality gates”
 
 ---
 
-## 1) 🧰 Genel Hazırlık (General Setup)
-### 1.1 📥 Load + Copy (Raw veriyi koruduk)
-- ✅ `pd.read_json(...)` ile raw veriyi aldık.
-- ✅ `df = df0.copy()` yaptık.
-- **Neden?** Raw veri bozulmasın, her adımı geri kontrol edebilelim.
+## 1) 🧰 General Setup
+### 1.1 📥 Load + Copy (Protect raw data)
+- ✅ We loaded raw JSON using `pd.read_json(...)`.
+- ✅ We created a copy: `df = df0.copy()`.
+- **Why?** To keep the raw dataset safe and make it easy to compare changes.
 
-### 1.2 🔍 Hızlı genel özet (skimpy + hızlı EDA araçları)
-- ✅ `skimpy` (ve benzeri hızlı özet) ile:
-  - kolon tipleri
-  - missing oranları
-  - temel dağılım sinyali
-  hızlıca görüldü.
-- ✅ Kendi fonksiyonlarımızla (örn. `first_looking`) kolon bazlı:
-  - null yüzdesi / null sayısı
-  - unique sayısı
+### 1.2 🔍 Quick overview (skimpy + fast EDA tools)
+- ✅ We used **skimpy** (and similar quick summaries) to see:
+  - column types
+  - missing rates
+  - basic distribution signals
+  quickly.
+- ✅ We also used our helper functions (example: `first_looking`) to check per column:
+  - missing percent / missing count
+  - number of unique values
   - value_counts
-  kontrol edildi.
 
-**Buradaki düşünce:**
-> “Önce problemi gör. Formatı anlamadan dönüşüm yaparsan parsing hatası büyür.”
+**Main idea:**
+> “See the problem first. If you transform before understanding formats, parsing errors can grow.”
 
 ---
 
-## 2) 🧹 Genel Temizlik (Global Cleaning Rules)
-### 2.1 🏷️ Kolon isim standardizasyonu (Schema normalize)
-- ✅ `to_snake_case()` ile kolon adlarını standard yaptık:
-  - newline / boşluk / özel karakter temizliği
-  - lowercase + underscore
-- **Neden?** Kod güvenliği + okunabilirlik + GitHub kalitesi.
+## 2) 🧹 Global Cleaning Rules
+### 2.1 🏷️ Column name standardization (Schema normalize)
+- ✅ We used `to_snake_case()` to standardize column names:
+  - remove newline characters / spaces / special symbols
+  - lowercase + underscores
+- **Why?** Safer code, better readability, better GitHub quality.
 
-### 2.2 🗑️ Tamamen boş satırları attık
+### 2.2 🗑️ Drop fully empty rows
 - ✅ `dropna(how="all")`
-- **Neden?** Bilgi taşımayan satır analizi kirletir.
+- **Why?** Rows with no information only add noise.
 
-### 2.3 🕳️ Çok boş kolonları eledik (Missing threshold)
-- ✅ Missing oranlarına baktık (`df_nans` / `show_missing_values`)
-- ✅ Kural: **>%80 missing olan kolonlar drop**
-- **Neden?**
-  - Part-02’de doldurmak için bile veri yok
-  - dataset’i şişiriyor, sinyal yerine gürültü yaratıyor
+### 2.3 🕳️ Remove very empty columns (Missing threshold)
+- ✅ We checked missing rates (`df_nans` / `show_missing_values`).
+- ✅ Rule: **if a column has >80% missing values → drop it**
+- **Why?**
+  - even in Part-02, there is not enough data to fill it well
+  - these columns make the dataset bigger but not better
 
-> Karar noktası:
-> - Eğer kolon **>%80 missing** ise → **drop**
-> - Eğer kolon orta seviyede missing ise → **Part-02’ye bırak**
-> - Eğer kolon “core” ise (price/mileage gibi) → kesinlikle tutulur, sonra doldurulur
+> Decision point:
+> - If **>80% missing** → **drop**
+> - If medium missing → keep and handle in **Part-02**
+> - If a **core** column (price/mileage) → keep and fill later
 
-### 2.4 🔁 Duplicate kontrolü
-- ✅ `duplicated()` ile kontrol etmek istedik.
-- 🧩 List tipler sorun çıkarabildiği için:
-  - `df.astype(str).duplicated()` gibi bir workaround ile mantıksal kontrol yaptık.
-- **Neden?** Scrape datada aynı ilan/benzer kayıt tekrar edebilir.
+### 2.4 🔁 Duplicate check
+- ✅ We tried `duplicated()` checks.
+- 🧩 Because list-type columns can cause issues, we used a workaround like:
+  - `df.astype(str).duplicated()` for a practical check
+- **Why?** Scraped data can include repeated listings or near-repeats.
 
 ---
 
-## 3) 🧩 Kolon-Kolon Temizleme Stratejisi (Column-wise Cleaning Strategy)
-Her kolonda şu 3 soruyla ilerledik:
+## 3) 🧩 Column-by-Column Cleaning Strategy
+For each column we asked these 3 questions:
 
-### ✅ Soru-1: Bu kolonun “formatı” ne?
-- Eğer **list** ise → list handling
-- Eğer **numeric-like text** ise → regex + numeric conversion
-- Eğer **category/text** ise → strip/normalize/mapping
-- Eğer **free-text (desc)** ise → bu fazda drop (NLP yok)
+### ✅ Question-1: What is the column format?
+- If it is a **list** → list handling
+- If it is **numeric-like text** → regex + numeric conversion
+- If it is **category/text** → strip/normalize/mapping
+- If it is **free text (desc)** → drop in this phase (NLP not in scope)
 
-### ✅ Soru-2: Bu kolon “işe yarıyor mu”?
-- Core feature mı? (price, mileage, age, power, fuel…)
-- Çok boş mu?
-- ID/leakage riski var mı? (Offer number)
+### ✅ Question-2: Is this column useful?
+- Is it a core feature? (price, mileage, age, power, fuel…)
+- Is it too missing?
+- Is it an ID / leakage risk? (Offer number)
 
-### ✅ Soru-3: Bu kolondan “daha iyi bir feature” üretebilir miyiz?
+### ✅ Question-3: Can we create a better feature from it?
 - power → kW + hp
 - fuel_consumption → avg/city/country
 - first_registration → age
 
 ---
 
-## 4) 🧷 List Handling (List gelen kolonlarda karar ağacı)
-Raw data içinde bazı kolonlar list gelebiliyordu.
+## 4) 🧷 List Handling (Decision tree for list-type cells)
+Some columns came as **lists**.
 
-### 4.1 ✅ Eğer list “tek elemanlı” ise (en sık durum)
-- Uyguladığımız yol:  
+### 4.1 ✅ If the list is usually single-item (most common case)
+- We used:
   - `x[0] if isinstance(x, list) else x`
-- **Neden?** Satır sayısını değiştirmeden scalar değere ineriz.
+- **Why?** It converts to a single value without changing row count.
 
-### 4.2 ⚠️ `.explode()` kullandığımız yerler (riskli ama pratik)
-- Bazı kolonlarda: `explode().str.strip(...)` yaptık.
-- **Bu ne zaman iyi?**
-  - list’in çoğunlukla tek elemanlı olduğunu bildiğimizde
+### 4.2 ⚠️ Where we used `.explode()` (practical but risky)
+- For some columns we used: `explode().str.strip(...)`.
+- **When is it OK?**
+  - when we believe lists are almost always single-item
 - **Risk:**
-  - list >1 elemanlıysa satır sayısını artırır → veri bozulabilir
+  - if a list has >1 item, `explode()` increases the number of rows → dataset can break
 
-> Bu yüzden strateji:  
-> - “Eminsek” explode  
-> - “Emin değilsek” ilk elemanı al (daha güvenli)
+> Strategy:
+> - If we are “confident” → explode  
+> - If we are “not sure” → take the first element (safer)
 
-### 4.3 🧩 Equipment kolonları (list → okunabilir text)
-- `comfort / entertainment / safety / extras` gibi list kolonlarda:
-  - `", ".join(list)` ile tek string yaptık.
-- **Neden?** Part-01’de hedef: **okunabilirlik + stabil dataset**
-- **Not:** Modelleme için ideal format değil; ileride:
+### 4.3 🧩 Equipment columns: list → readable text
+- For equipment groups (`comfort`, `entertainment`, `safety`, `extras`):
+  - we used `", ".join(list)` to make one readable string
+- **Why?** Part-01 aims for **readability + stable dataset**
+- **Note:** For modeling later, better options are:
   - `equipment_count`
-  - `has_feature_X` (0/1 flag)
-  gibi encode edilir.
+  - `has_feature_X` (0/1 flags)
 
 ---
 
-## 5) 🔡 Regex ile Sayısallaştırma (Text → Numeric Parsing)
-Bu bölüm Part-01’in “çekirdek motoru” oldu.
+## 5) 🔡 Regex for Numeric Conversion (Text → Numeric Parsing)
+This was the “core engine” of Part-01.
 
 ### 5.1 💰 Price
-- Baktık: değerler metin + para birimi/ayırıcı içeriyor.
-- Uyguladık:
-  - regex ile sayı çekme (`extract`)
-  - ayırıcı temizleme (`,` gibi)
-  - `astype(float)` ile numeric yapma
+- We saw: values are text with currency and separators.
+- We applied:
+  - regex to extract the number (`extract`)
+  - remove separators (like `,`)
+  - convert to numeric (`astype(float)`)
 
-**Neden?** price numeric olmadan EDA/outlier/model olmaz.
+**Why?** Without numeric price, EDA/outliers/models are not possible.
 
 ### 5.2 🛣️ Mileage
-- Baktık: “km” ve ayırıcılar var.
-- Uyguladık:
-  - separator temizleme
-  - regex ile digit extract
+- We saw: “km” text and separators.
+- We applied:
+  - separator cleanup
+  - regex digit extraction
   - numeric conversion
 
-### 5.3 ⚙️ Engine/weight/gear/cylinders gibi alanlar
-- Baktık: numeric-like string
-- Uyguladık:
-  - `extract('(\d+)')` yaklaşımı
+### 5.3 ⚙️ Engine/weight/gear/cylinders-like fields
+- We saw: numeric-like strings.
+- We applied:
+  - `extract('(\d+)')`
   - numeric conversion
 
-> Genel kural:
-> - metinde sayı varsa → regex ile ayıkla → numeric'e çevir  
-> - dönüşümde hata riski varsa → Part-02’de missing olarak ele al
+> General rule:
+> - if a number is inside text → extract it → convert to numeric  
+> - if parsing is not safe → treat it as missing and handle in Part-02
 
 ---
 
-## 6) 🧠 Feature Engineering (Özellik türetme) — “Temizle + Güçlendir”
-Bu adım “sadece temizleme” değil, veriyi **daha faydalı** hale getirme adımıydı.
+## 6) 🧠 Feature Engineering — “Clean + Make it stronger”
+This part was not only cleaning, but also making the data more useful.
 
 ### 6.1 📅 First registration → Age
-- Baktık: first_registration tarih formatı karışabiliyor ve model için “age” daha iyi.
-- Uyguladık:
-  - yıl extract (son 4 karakter gibi)
+- We saw: registration format can be mixed, and **age** is easier for analysis.
+- We applied:
+  - extract year (often last 4 characters)
   - `age = reference_year - year`
-- Sonra:
-  - `first_registration` ve `production_date` gibi kaynak kolonları drop ettik (redundant)
+- Then:
+  - we dropped source columns like `first_registration` and `production_date` (redundant)
 
 ### 6.2 ⚙️ Power → power_kW + power_hp
-- Baktık: power metin içinde iki birim içeriyor (kW/hp).
-- Uyguladık:
-  - list ise ilk eleman
-  - regex ile iki değeri çıkarma
-  - iki yeni numeric kolon üretme
-- Sonra:
-  - kaynak `power` drop (artık gereksiz)
+- We saw: power text often contains both kW and hp.
+- We applied:
+  - if list → take first element
+  - regex to extract two numbers
+  - created two numeric columns
+- Then:
+  - dropped the source `power` column
 
 ### 6.3 ⛽ Fuel consumption → cons_avg / cons_city / cons_country
-- Baktık: consumption alanı tek kolonda karmaşık bir yapı.
-- Uyguladık:
-  - helper fonksiyonlarla doğru parçayı seçme
-  - regex ile numeric extract
-  - `cons_avg`, `cons_city`, `cons_country` üretme
-- Sonra:
-  - `fuel_consumption` drop
+- We saw: consumption is a complex field in a single column.
+- We applied:
+  - helper functions to select correct parts
+  - regex numeric extraction
+  - created `cons_avg`, `cons_city`, `cons_country`
+- Then:
+  - dropped the source `fuel_consumption` column
 
 ---
 
-## 7) 🧩 Categorical Normalization (Kategorik sadeleştirme)
+## 7) 🧩 Categorical Normalization (Simplifying categories)
 ### 7.1 ⛽ Fuel type mapping
-- Baktık: fuel_type çok farklı yazımlarla geliyor.
-- Uyguladık:
-  - `/` split (ilk parçayı alma)
-  - mapping fonksiyonu ile benzerleri aynı grupta toplama
-- **Neden?** Çok fazla kategori = dağınık analiz. Daha az kategori = daha güçlü sinyal.
+- We saw: many different fuel labels.
+- We applied:
+  - split by `/` (take the first part)
+  - mapping function to group similar labels
+- **Why?** Too many categories makes analysis messy; fewer groups are clearer.
 
-### 7.2 🌿 Emission / Efficiency gruplama
-- Baktık: emission class ve efficiency class çok varyantlı.
-- Uyguladık:
-  - normalize eden fonksiyonlarla gruplama
-- Karar:
-  - bazılarını sonradan drop ettik (bu faz için gerekli görmedik)
+### 7.2 🌿 Emission / Efficiency grouping
+- We saw: many variants in emission/efficiency labels.
+- We applied:
+  - functions that normalize/group values
+- Decision:
+  - some of these columns were later dropped (not needed for this phase)
 
 ---
 
-## 8) 🗑️ Drop Stratejisi (Neyi neden attık?)
-### 8.1 🧾 Free-text
-- `desc` gibi uzun metinler:
-  - NLP yapmayacağımız için drop
+## 8) 🗑️ Drop Strategy (What we removed and why)
+### 8.1 🧾 Free text
+- long text like `desc`:
+  - dropped (NLP not included in this phase)
 
 ### 8.2 🆔 ID / leakage
 - `offer_number`:
-  - modelin “ezberlemesine” sebep olabileceği için drop
+  - dropped to avoid memorization/leakage in models
 
-### 8.3 🕳️ Çok boş kolonlar
-- WLTP/EV alanlarının çoğu:
-  - >80 missing → drop
+### 8.3 🕳️ Very missing columns
+- many WLTP/EV fields:
+  - dropped by the >80% missing rule
 
-### 8.4 🔁 Redundant (türetilen feature sonrası)
-- `power` → split sonrası drop
-- `fuel_consumption` → cons_* sonrası drop
-- `first_registration` → age sonrası drop
-
----
-
-## 9) ✅ Data Quality Gates (Son Kontroller)
-Part-01 sonunda şunları kontrol ettik:
-- 🧪 kolonların dtype durumu (numeric olması gerekenler numeric mi?)
-- 🕳️ missing durum raporu (Part-02’ye hazırlık)
-- 🔁 duplicate kontrol çıktısı (tam silme kararı sonraki aşamaya bırakılabilir)
-- 📌 temel mantık kontrolleri (negatif km/fiyat gibi anormallikler Part-03’e not edilir)
+### 8.4 🔁 Redundant after feature engineering
+- `power` dropped after creating `power_kW/hp`
+- `fuel_consumption` dropped after creating `cons_*`
+- `first_registration` dropped after creating `age`
 
 ---
 
-## 🏁 Çıktı: Part-01 sonunda elimizde ne var?
-- ✅ Standard kolon isimleri (snake_case)
-- ✅ Core kolonlar numeric ve analiz-ready:
+## 9) ✅ Data Quality Gates (Final checks)
+At the end of Part-01 we checked:
+- 🧪 column dtypes (numeric fields are numeric)
+- 🕳️ missing report (ready for Part-02)
+- 🔁 duplicate check output (drop decision can be applied later)
+- 📌 basic logic checks (negative values noted for Part-03 outlier handling)
+
+---
+
+## 🏁 Output: What we have after Part-01
+- ✅ clean, standardized column names (snake_case)
+- ✅ core numeric columns ready for analysis:
   - price, mileage, age, power_kW/hp, cons_*
-- ✅ Donanım kolonları okunabilir formda
-- ✅ Aşırı boş / düşük değerli / ID kolonları temizlenmiş
-- ✅ Part-02 (missing) ve Part-03 (outlier) için sağlam zemin
+- ✅ equipment columns made readable
+- ✅ very missing / low-value / ID columns removed
+- ✅ strong base for Part-02 (missing) and Part-03 (outliers)
 
 ---
 
-## 🔥 Mini “Decision Log” (Kısa)
+## 🔥 Mini Decision Log (Short)
 - **Missing >80%** → drop  
-- **List field** → (eminsek) explode, (emin değilsek) first element  
+- **List field** → (if confident) explode, (if not) first element  
 - **Text-number** → regex extract + numeric conversion  
 - **Better feature possible** → create feature, then drop source column  
-- **Free text / ID** → drop (bu fazda)
+- **Free text / ID** → drop (in this phase)
