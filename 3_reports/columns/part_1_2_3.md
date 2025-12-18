@@ -1,87 +1,87 @@
-## A) Pipeline Kolonları (Phase 1 → Phase 3)
+## A) Pipeline Columns (Phase 1 → Phase 3)
 
-| Kolon | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Son Durum |
+| Column | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Final Status |
 |---|---|---|---|---|
-| make_model | ✅ snake_case + temel text standardizasyonu (brand+model kimliği olarak kullanıldı). | 🔧 `model` düzeldikten sonra **make + model** ile yeniden oluşturuldu; `.str.title()` ile format birliği. | 🧭 Grup anahtarı olarak kullanıldı (outlier değil). | ✅ Finalde Var |
-| short_description | ✅ Korundu (model/kimlik doğrulama için yardımcı text). | 🧠 Regex ile `model` kurtarmada kullanıldı; iş bitince **drop**. | — | ❌ Phase 2'de Silindi |
-| make | ✅ Text temizlik/standardizasyon (brand). | 🔤 `.str.title()` ile format birliği (make_model rebuild için kullanıldı). | — | ✅ Finalde Var |
-| model | ✅ Text temizlik/standardizasyon. | 🧠 Regex ile `short_description` içinden çıkarıldı ve `fillna`; kurtarılamayan az sayıda satır **drop**. | — | ✅ Finalde Var |
-| location | ✅ Temizlendi/standardize edildi (string). | — | — | ✅ Finalde Var |
-| price | 🔢 Numerik dönüşüm + format temizliği (€, virgül/nokta vb.). | — | 🚨 Domain filtre + **IQR (Tukey Fence)** ile uç değer satırları drop. | ✅ Finalde Var |
-| body_type | ✅ Kategori temizliği/standardizasyon. | 🔤 `.str.title()` ile format birliği (gruplama için). | 🧭 Grup anahtarı olarak kullanıldı (outlier değil). | ✅ Finalde Var |
-| type | ✅ Kategori temizliği/standardizasyon. | — | — | ✅ Finalde Var |
-| doors | 🔢 Numerik/format kontrolü (kategori/numeric temizliği). | 🧩 Group-based **mode fill** (make_model + body_type → fallback). | 🗑 Kolon komple **drop** (katkı düşük / kararsız). | ❌ Phase 3'te Silindi |
-| warranty | ✅ Temel temizlik (string). | 🧾 Rule-based: `-` → **No**, diğerleri → **Yes** (ikili sınıf). | — | ✅ Finalde Var |
-| mileage | 🔢 Numerik dönüşüm + format temizliği. | 📈 `make_model + age` gruplarında **mean fill** (segment ortalaması). | 🚨 `> 1,000,000` drop + **IQR (Tukey)** ile uçlar drop. | ✅ Finalde Var |
-| gearbox | ✅ Kategori temizliği/standardizasyon. | 🧩 Group-based **mode fill**. | — | ✅ Finalde Var |
-| fuel_type | ✅ Kategori temizliği/standardizasyon. | 🧩 Group-based **mode fill** (make_model + gearbox) + 1 manuel düzeltme (tek kayıt). | — | ✅ Finalde Var |
-| seller | ✅ Kategori temizliği/standardizasyon. | — | — | ✅ Finalde Var |
-| seats | 🔢 Numerik/format kontrolü. | 🧩 Group-based **mode fill**. | 🗑 Kolon komple **drop**. | ❌ Phase 3'te Silindi |
-| engine_size | 🔢 Numerik dönüşüm + format temizliği. | 🧩 `-` → NaN; group-based **mode fill** (make_model + body_type). | 🚨 Anormal set → NaN; sonra **mode fill**; kalan uçlar için z-score drop. | ✅ Finalde Var |
-| gears | 🔢 Numerik/format temizliği. | 🧩 `-` → NaN; çok seviyeli group-based **mode fill** (make_model/body_type/gearbox → fallback). | 🚨 `0` veya `>8` → NaN + mode fill; `==2` satırları drop. | ✅ Finalde Var |
-| co_emissions | 🔢 Numerik dönüşüm + format temizliği. | ⚡ Electric özel kontrol + segment **median fill** (çok seviyeli fallback). | 🚨 Aşırı değerler → NaN; **median fill**; log1p inceleme; z-score drop. | ✅ Finalde Var |
-| drivetrain | ✅ Kategori temizliği/standardizasyon. | 🧩 Group-based **mode fill**. | — | ✅ Finalde Var |
-| cylinders | 🔢 Numerik/format temizliği. | 🧩 Mode fill yapıldı; sonra düşük katkı/redundant görüldü → **drop**. | — | ❌ Phase 2'de Silindi |
-| empty_weight | 🔢 Numerik dönüşüm + format temizliği. | 🧩 Group-based **mode fill**. | 🚨 `>4000` ve {75, 525} → NaN; sonra mode fill. | ✅ Finalde Var |
-| full_service_history | ✅ Kategori temizliği/standardizasyon. | — | — | ✅ Finalde Var |
-| upholstery | ✅ Kategori temizliği/standardizasyon. | 🪑 Kategori birleştirme (Velour→Cloth vb.); `Other`→NaN; group ffill/bfill. | — | ✅ Finalde Var |
-| previous_owner | 🔢 Numerik/format temizliği. | 🔁 `age` içinde ffill/bfill (propagation). | 🚨 `>=10` satırlar drop. | ✅ Finalde Var |
-| energy_efficiency_class | ✅ Kategori temizliği (string). | 🧩 Group-based **mode fill** (`make_model + age` → fallback). | — | ✅ Finalde Var |
-| extras | 🧾 List/text alanı temizlendi (stringleştirme). | 🧩 Group-based **mode fill**. | — | ✅ Finalde Var |
-| age | 🧠 **Feature Engineering:** `age = 2022 - first_registration` | 🧓 Domain rule: `mileage < 10000` ise eksik age → `0` (new car). | 🚨 `age < 0` veya `age > 20` satırlar drop. | ✅ Finalde Var |
-| power_kW | 🧠 **Feature Engineering:** `power` içinden regex ile `power_kW` ve `power_hp` çıkarıldı; numeric. | 🧩 `-`→NaN; group-based **mode fill** (`make_model + body_type`). | 🚨 Düşük frekanslı kW değerleri → NaN; segment **median fill**; z-score drop. | ✅ Finalde Var |
-| power_hp | 🧠 `power` içinden çıkarıldı (numeric). | 🧩 Group-based **mode fill**; sonra `power_kW` ile redundant → **drop**. | — | ❌ Phase 2'de Silindi |
-| cons_avg | 🧠 **Feature Engineering:** `fuel_consumption` içinden `cons_avg` çıkarıldı; numeric. | ⚡ Electric için sabit değer; kalanlar için segment **median fill**. | 🚨 `>=20` → NaN; median fill; z-score drop. | ✅ Finalde Var |
-| cons_city | 🧠 `fuel_consumption` içinden çıkarıldı. | 🗑 `cons_avg` seçildiği için redundant → **drop**. | — | ❌ Phase 2'de Silindi |
-| cons_country | 🧠 `fuel_consumption` içinden çıkarıldı. | 🗑 `cons_avg` seçildiği için redundant → **drop**. | — | ❌ Phase 2'de Silindi |
-| comfort_convenience | 🧾 List/text temizliği (stringleştirme). | 🧩 Mode fill → **Package feature** üretildi → ham kolon **drop**. | — | ❌ Phase 2'de Silindi |
-| entertainment_media | 🧾 List/text temizliği (stringleştirme). | 🧩 Mode fill → **Package feature** üretildi → ham kolon **drop**. | — | ❌ Phase 2'de Silindi |
-| safety_security | 🧾 List/text temizliği (stringleştirme). | 🧩 Mode fill → **Package feature** üretildi → ham kolon **drop**. | — | ❌ Phase 2'de Silindi |
-| comfort_convenience_Package | — | 🧪 Feature Engineering: comfort text → **Standard / Premium / Premium Plus** paket seviyesi. | — | ✅ Finalde Var |
-| entertainment_media_Package | — | 🧪 Feature Engineering: media text → **Standard Media / Media Plus**. | — | ✅ Finalde Var |
-| safety_security_Package | — | 🧪 Feature Engineering: safety text → **Standard / Premium / Premium Plus**. | — | ✅ Finalde Var |
+| make_model | ✅ snake_case + basic text standardization (used as brand+model identity). | 🔧 After fixing `model`, rebuilt using **make + model**; `.str.title()` for consistent format. | 🧭 Used as a grouping key (not an outlier target). | ✅ Kept in Final |
+| short_description | ✅ Kept (helper text for model/identity checks). | 🧠 Used to recover `model` via regex; then **dropped** after finishing. | — | ❌ Removed in Phase 2 |
+| make | ✅ Text cleanup/standardization (brand). | 🔤 `.str.title()` formatting (used for make_model rebuild). | — | ✅ Kept in Final |
+| model | ✅ Text cleanup/standardization. | 🧠 Extracted from `short_description` with regex + `fillna`; a few unrecoverable rows were **dropped**. | — | ✅ Kept in Final |
+| location | ✅ Cleaned/standardized (string). | — | — | ✅ Kept in Final |
+| price | 🔢 Numeric conversion + format cleanup (€, separators, etc.). | — | 🚨 Domain filter + **IQR (Tukey Fence)** to drop extreme rows. | ✅ Kept in Final |
+| body_type | ✅ Category cleanup/standardization. | 🔤 `.str.title()` for consistent grouping. | 🧭 Used as grouping key (not an outlier target). | ✅ Kept in Final |
+| type | ✅ Category cleanup/standardization. | — | — | ✅ Kept in Final |
+| doors | 🔢 Numeric/format check (category/numeric cleanup). | 🧩 Group-based **mode fill** (make_model + body_type → fallback). | 🗑 Entire column **dropped** (low contribution / unstable). | ❌ Removed in Phase 3 |
+| warranty | ✅ Basic cleanup (string). | 🧾 Rule-based: `-` → **No**, otherwise → **Yes** (binary). | — | ✅ Kept in Final |
+| mileage | 🔢 Numeric conversion + format cleanup. | 📈 **Mean fill** inside `make_model + age` segments. | 🚨 `> 1,000,000` drop + **IQR (Tukey)** to drop remaining extremes. | ✅ Kept in Final |
+| gearbox | ✅ Category cleanup/standardization. | 🧩 Group-based **mode fill**. | — | ✅ Kept in Final |
+| fuel_type | ✅ Category cleanup/standardization. | 🧩 Group-based **mode fill** (make_model + gearbox) + 1 manual fix (single record). | — | ✅ Kept in Final |
+| seller | ✅ Category cleanup/standardization. | — | — | ✅ Kept in Final |
+| seats | 🔢 Numeric/format check. | 🧩 Group-based **mode fill**. | 🗑 Entire column **dropped**. | ❌ Removed in Phase 3 |
+| engine_size | 🔢 Numeric conversion + format cleanup. | 🧩 `-` → NaN; group-based **mode fill** (make_model + body_type). | 🚨 Known invalid set → NaN; then **mode fill**; remaining extremes removed via z-score. | ✅ Kept in Final |
+| gears | 🔢 Numeric/format cleanup. | 🧩 `-` → NaN; multi-level group-based **mode fill** (make_model/body_type/gearbox → fallback). | 🚨 `0` or `>8` → NaN + mode fill; `==2` rows dropped. | ✅ Kept in Final |
+| co_emissions | 🔢 Numeric conversion + format cleanup. | ⚡ Electric-specific checks + segment **median fill** (multi-level fallback). | 🚨 Extreme values → NaN; **median fill**; log1p review; z-score row drops. | ✅ Kept in Final |
+| drivetrain | ✅ Category cleanup/standardization. | 🧩 Group-based **mode fill**. | — | ✅ Kept in Final |
+| cylinders | 🔢 Numeric/format cleanup. | 🧩 Mode filled; later considered low value/redundant → **dropped**. | — | ❌ Removed in Phase 2 |
+| empty_weight | 🔢 Numeric conversion + format cleanup. | 🧩 Group-based **mode fill**. | 🚨 `>4000` and {75, 525} → NaN; then mode fill. | ✅ Kept in Final |
+| full_service_history | ✅ Category cleanup/standardization. | — | — | ✅ Kept in Final |
+| upholstery | ✅ Category cleanup/standardization. | 🪑 Category consolidation (Velour→Cloth etc.); `Other`→NaN; group ffill/bfill. | — | ✅ Kept in Final |
+| previous_owner | 🔢 Numeric/format cleanup. | 🔁 ffill/bfill propagation within `age` groups. | 🚨 Rows with `>=10` dropped. | ✅ Kept in Final |
+| energy_efficiency_class | ✅ Category cleanup (string). | 🧩 Group-based **mode fill** (`make_model + age` → fallback). | — | ✅ Kept in Final |
+| extras | 🧾 List/text cleaned (stringified). | 🧩 Group-based **mode fill**. | — | ✅ Kept in Final |
+| age | 🧠 **Feature Engineering:** `age = 2022 - first_registration` | 🧓 Domain rule: if `mileage < 10000` and age missing → set `0` (new car). | 🚨 Drop rows where `age < 0` or `age > 20`. | ✅ Kept in Final |
+| power_kW | 🧠 **Feature Engineering:** extracted `power_kW` and `power_hp` from power text (regex); numeric. | 🧩 `-`→NaN; group-based **mode fill** (`make_model + body_type`). | 🚨 Low-frequency kW values → NaN; segment **median fill**; z-score row drops. | ✅ Kept in Final |
+| power_hp | 🧠 Extracted from power field (numeric). | 🧩 Group-based **mode fill**; then redundant with `power_kW` → **dropped**. | — | ❌ Removed in Phase 2 |
+| cons_avg | 🧠 **Feature Engineering:** extracted from `fuel_consumption`; numeric. | ⚡ Electric set to constant; remaining filled with segment **median**. | 🚨 `>=20` → NaN; median fill; z-score row drops. | ✅ Kept in Final |
+| cons_city | 🧠 Extracted from `fuel_consumption`. | 🗑 Redundant after selecting `cons_avg` → **dropped**. | — | ❌ Removed in Phase 2 |
+| cons_country | 🧠 Extracted from `fuel_consumption`. | 🗑 Redundant after selecting `cons_avg` → **dropped**. | — | ❌ Removed in Phase 2 |
+| comfort_convenience | 🧾 List/text cleanup (stringified). | 🧩 Mode fill → **Package feature** created → raw column **dropped**. | — | ❌ Removed in Phase 2 |
+| entertainment_media | 🧾 List/text cleanup (stringified). | 🧩 Mode fill → **Package feature** created → raw column **dropped**. | — | ❌ Removed in Phase 2 |
+| safety_security | 🧾 List/text cleanup (stringified). | 🧩 Mode fill → **Package feature** created → raw column **dropped**. | — | ❌ Removed in Phase 2 |
+| comfort_convenience_Package | — | 🧪 Feature Engineering: comfort text → **Standard / Premium / Premium Plus** package level. | — | ✅ Kept in Final |
+| entertainment_media_Package | — | 🧪 Feature Engineering: media text → **Standard Media / Media Plus**. | — | ✅ Kept in Final |
+| safety_security_Package | — | 🧪 Feature Engineering: safety text → **Standard / Premium / Premium Plus**. | — | ✅ Kept in Final |
 
 ---
 
-## B) Geçici Helper Kolonlar
+## B) Temporary Helper Columns
 
-| Kolon | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Son Durum |
+| Column | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Final Status |
 |---|---|---|---|---|
-| extracted_models (helper) | — | 🧠 Regex extraction sonucu geçici kolon; `model` doldurma sonrası **drop**. | — | ❌ Phase 2'de Silindi |
-| modified_make_model (helper) | — | 🔧 make+model ile geçici kimlik; `make_model` güncelleme sonrası **drop**. | — | ❌ Phase 2'de Silindi |
+| extracted_models (helper) | — | 🧠 Temporary column from regex extraction; dropped after filling `model`. | — | ❌ Removed in Phase 2 |
+| modified_make_model (helper) | — | 🔧 Temporary identity from make+model; dropped after updating `make_model`. | — | ❌ Removed in Phase 2 |
 
 ---
 
-## C) Phase 1'de Silinen Kolonlar (Raw-only / High Missing / Kapsam Dışı)
+## C) Columns Removed in Phase 1 (Raw-only / High Missing / Out of Scope)
 
-| Kolon | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Son Durum |
+| Column | Phase 1 (Data Cleaning) | Phase 2 (Missing Values) | Phase 3 (Outliers + Final Step) | Final Status |
 |---|---|---|---|---|
-| availability | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| available_from | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| battery_ownership | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| co_efficiency | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| co_emissions_wltp | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| colour | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| country_version | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| desc | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| electric_range_wltp | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| emission_class | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| emissions_sticker | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| first_registration | 🧠 Kaynak kolon: yeni feature üretildi ve sonra **drop**. | — | — | ❌ Phase 1'de Silindi |
-| fuel_consumption | 🧠 Kaynak kolon: yeni feature üretildi ve sonra **drop**. | — | — | ❌ Phase 1'de Silindi |
-| fuel_consumption_wltp | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| general_inspection | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| last_service | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| last_timing_belt_change | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| manufacturer_colour | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| model_code | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| non_smoker_vehicle | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| offer_number | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| other_fuel_types | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| paint | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
-| power | 🧠 Kaynak kolon: yeni feature üretildi ve sonra **drop**. | — | — | ❌ Phase 1'de Silindi |
-| power_consumption | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| power_consumption_wltp | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| production_date | 🧠 Kaynak kolon: yeni feature üretildi ve sonra **drop**. | — | — | ❌ Phase 1'de Silindi |
-| taxi_or_rental_car | 🗑 Çok yüksek missing / düşük kullanım (>%80 NaN) → toplu **drop**. | — | — | ❌ Phase 1'de Silindi |
-| upholstery_colour | 🗑 Düşük değer / redundant / proje kapsamı dışı → **drop**. | — | — | ❌ Phase 1'de Silindi |
+| availability | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| available_from | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| battery_ownership | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| co_efficiency | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| co_emissions_wltp | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| colour | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| country_version | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| desc | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| electric_range_wltp | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| emission_class | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| emissions_sticker | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| first_registration | 🧠 Source column: used to create a new feature, then **dropped**. | — | — | ❌ Removed in Phase 1 |
+| fuel_consumption | 🧠 Source column: used to create new features, then **dropped**. | — | — | ❌ Removed in Phase 1 |
+| fuel_consumption_wltp | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| general_inspection | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| last_service | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| last_timing_belt_change | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| manufacturer_colour | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| model_code | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| non_smoker_vehicle | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| offer_number | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| other_fuel_types | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| paint | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
+| power | 🧠 Source column: used to create new features, then **dropped**. | — | — | ❌ Removed in Phase 1 |
+| power_consumption | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| power_consumption_wltp | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| production_date | 🧠 Source column: used to create a new feature, then **dropped**. | — | — | ❌ Removed in Phase 1 |
+| taxi_or_rental_car | 🗑 Very high missing / low use (>%80 NaN) → bulk **drop**. | — | — | ❌ Removed in Phase 1 |
+| upholstery_colour | 🗑 Low value / redundant / out of scope → **drop**. | — | — | ❌ Removed in Phase 1 |
